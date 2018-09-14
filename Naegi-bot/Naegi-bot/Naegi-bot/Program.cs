@@ -19,7 +19,7 @@ namespace MakotoNaegi
         {
             discord = new DiscordClient(new DiscordConfiguration
             {
-                Token = "NDU4NjI5NTMzMjA2MzE1MDEw.DgqboA.Ru1Gx5wShmNhXRLqutJlJQqog7g",
+                Token = "//",
                 TokenType = TokenType.Bot,
                 UseInternalLogHandler = true,
                 LogLevel = LogLevel.Debug
