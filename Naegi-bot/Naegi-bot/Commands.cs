@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus;
@@ -7,6 +9,9 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
+using Naegi_bot;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace NaegiCommands
 {
@@ -175,7 +180,7 @@ namespace NaegiCommands
         // viii. Good Morning! --------------------------------------------------------------------------------------
 
         [Command("goodmorning")]
-        [Aliases("goodmorningnaegi", "goodmorning!", "goodmorningnaegi!")]
+        [Aliases("goodmorningnaegi", "goodmorning!", "goodmorningnaegi!", "morning", "goodmorning" )]
         [Description("Start today with a good morning from Naegi!")]
         public async Task Morning(CommandContext ctx, DiscordMember member = null)
         {
@@ -209,7 +214,7 @@ namespace NaegiCommands
         // ix. Good Night! --------------------------------------------------------------------------------------
 
         [Command("goodnight")]
-        [Aliases("goodnightnaegi", "goodnight!", "goodnightnaegi!")]
+        [Aliases("goodnightnaegi", "goodnight!", "goodnightnaegi!", "nn", "goodnight")]
         [Description("Head off to bed with a blessing from our lord and saviour!")]
         public async Task Night(CommandContext ctx, DiscordMember member = null)
         {
@@ -243,7 +248,6 @@ namespace NaegiCommands
         }
 
         // x. Praise --------------------------------------------------------------------------------------
-
         [Command("praise")]
         [Aliases("bless", "thankyou", "cheerfor")]
         [Description("Deliver Naegi's blessing onto someone else!")]
@@ -262,5 +266,148 @@ namespace NaegiCommands
             await ctx.RespondAsync(lines[number]);
         }
 
+        // xi. Purge --------------------------------------------------------------------------------------
+        [Command("purge")] [Aliases("delete", "clear")]
+        [Description("Gets rid of old messages!")]
+        public static async Task PurgeAsync(CommandContext ctx, IEnumerable<DiscordMessage> messages)
+        {
+            string error_nothing = "Looks like this place is all spotless!";
+            string completed = "Message(s) deleted!";
+
+            var msgs = messages as List<DiscordMessage> ?? new List<DiscordMessage>(messages);
+
+            if (msgs.Count == 0) { await ctx.RespondAsync(error_nothing); }
+            if (msgs.Count == 1)
+            {
+                await ctx.Channel.DeleteMessageAsync(msgs[0]);
+                await ctx.RespondAsync(completed);
+            }
+            else if (msgs.Count <= 100)
+            {
+                await ctx.Channel.DeleteMessagesAsync(msgs);
+                await ctx.RespondAsync(completed);
+            }
+            else
+            {
+                foreach (var msgsSub in SplitList(msgs, 100))
+                {
+                    await ctx.Channel.DeleteMessagesAsync(msgs);
+                }
+            }
+        }
+
+        // xii. Remind --------------------------------------------------------------------------------------
+        [Command("remind")]
+        [Description("Set a reminder!")]
+        public async Task Remind(CommandContext ctx, DateTime dateTime, string reminderText, params string[] mentions) {
+            JObject changed;
+
+            // Get the current contents
+            using (StreamReader reader = File.OpenText(@"..\..\Reminders.json")) {
+
+                // Read file stream
+                JObject o = (JObject)JToken.ReadFrom(new JsonTextReader(reader));
+
+                JArray reminderArray = (JArray)o["Reminders"];
+
+                // Convert to list of Reminder objects
+                List<Reminder> reminders = reminderArray.Select(r => new Reminder
+                {
+                    Time = (DateTime)r["Time"],
+                    Content = (string)r["Content"],
+                    Mentions = (string)r["Mentions"],
+                    ChannelID = (ulong)r["ChannelID"]
+                }).ToList();
+
+                // Create Mentions string
+                string concatMention = "";
+                foreach (var s in mentions)
+                {
+                    concatMention += " " + s;
+                }
+
+                // Create new Reminder objects
+                Reminder reminder = new Reminder(dateTime, reminderText, concatMention, ctx.Channel.Id);
+
+                // Add to list on dto
+                ReminderDTO dto = new ReminderDTO();
+                dto.Reminders.AddRange(reminders);
+                dto.Reminders.Add(reminder);
+
+                // Write to file
+                changed = JObject.FromObject(dto);
+            }
+
+            File.WriteAllText(@"..\..\Reminders.json", changed.ToString());
+
+            await ctx.RespondAsync("Alright! I'll make sure I won't forget to remind you!");
+        }
+
+        private static IEnumerable<List<T>> SplitList<T>(List<T> locations, int nSize)
+        {
+            for (var i = 0; i < locations.Count; i += nSize)
+            {
+                yield return locations.GetRange(i, Math.Min(nSize, locations.Count - i));
+            }
+        }
+
+
     }
 }
+
+
+//    public async Task Remind(CommandContext ctx, DateTime dateTime, string reminderText, params string[] mentions)
+//    {
+//        JObject changed;
+
+//        // Get the current contents
+//        using (StreamReader reader = File.OpenText(@"..\..\Reminders.json"))
+//        {
+//            // Read file stream
+//            JObject o = (JObject)JToken.ReadFrom(new JsonTextReader(reader));
+
+//            JArray reminderArray = (JArray)o["Reminders"];
+
+//            // Convert to list of Reminder objects
+//            List<Reminder> reminders = reminderArray.Select(r => new Reminder
+//            {
+//                Time = (DateTime)r["Time"],
+//                Content = (string)r["Content"],
+//                Mentions = (string)r["Mentions"],
+//                ChannelID = (ulong)r["ChannelID"]
+//            }).ToList();
+
+//            // Create Mentions string
+//            string concatMention = "";
+//            foreach(var s in mentions) {
+//                concatMention += " " + s;
+//            }
+
+//            // Create new Reminder objects
+//            Reminder reminder = new Reminder(dateTime, reminderText, concatMention, ctx.Channel.Id);
+
+//            // Add to list on dto
+//            ReminderDTO dto = new ReminderDTO();
+//            dto.Reminders.AddRange(reminders);
+//            dto.Reminders.Add(reminder);
+
+//            // Write to file
+//            changed = JObject.FromObject(dto);
+//        }
+
+//        File.WriteAllText(@"..\..\Reminders.json", changed.ToString());
+
+//        await ctx.RespondAsync("Alright! I'll make sure I won't forget to remind you!");
+//    }
+
+//    private static IEnumerable<List<T>> SplitList<T>(List<T> locations, int nSize)
+//    {
+//        for (var i = 0; i < locations.Count; i += nSize)
+//        {
+//            yield return locations.GetRange(i, Math.Min(nSize, locations.Count - i));
+//        }
+//    }
+
+
+
+//}
